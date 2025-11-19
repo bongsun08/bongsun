@@ -14,18 +14,23 @@ st.set_page_config(layout="wide", page_title="연간 화재 통계 분석")
 st.title("🔥 연간 화재 통계 (재산피해 기준)")
 st.caption("소방청_연간화재통계_20241231.csv 분석 및 상위 100건 시각화")
 
+# 주의: 파일 경로가 루트 폴더로 변경되었습니다. (../)
+DATA_FILE_PATH = "../소방청_연간화재통계_20241231.csv"
+
 @st.cache_data
 def load_data(file_path):
     """CSV 파일을 로드하고 재산피해 상위 100건을 추출합니다."""
-    # 파일 경로가 사용자가 올린 파일의 contentFetchId에 해당함
     try:
+        # 파일 경로 수정: app.py는 pages 폴더에 있고, CSV는 루트 폴더에 있으므로 '../'를 사용
         df = pd.read_csv(file_path, encoding='utf-8')
+    except FileNotFoundError:
+        st.error(f"데이터 파일 로드 오류: 파일 경로({file_path})에 파일이 없습니다. 루트 폴더에 CSV 파일이 있는지 확인해 주세요.")
+        st.stop()
     except Exception as e:
-        st.error(f"데이터 파일 로드 오류: {e}")
+        st.error(f"데이터 파일 로드 중 예상치 못한 오류 발생: {e}")
         st.stop()
         
     df['시_군_구'] = df['시_군_구'].fillna('미상')
-    # 지오코딩을 위한 주소 컬럼 생성
     df['full_address'] = df['시도'] + ' ' + df['시_군_구']
     
     # Folium 시각화를 위해 재산피해소계가 큰 순서로 정렬하고 상위 100개만 사용
@@ -40,7 +45,6 @@ def load_data(file_path):
 def geocode_data(df):
     """주소 정보를 위도, 경도로 변환합니다."""
     # Nominatim geolocator 초기화
-    # user_agent는 geopy 사용 시 필수입니다.
     geolocator = Nominatim(user_agent="fire_damage_analysis_app")
     
     # RateLimiter를 사용하여 쿼리 간 지연시간 설정 (과도한 API 호출 방지)
@@ -88,7 +92,6 @@ def create_folium_map(df_geo):
         damage = row['재산피해소계']
         
         # 재산피해에 비례하는 반지름 계산 (시각적 효과 증대를 위해 로그 스케일 및 상수 곱 적용)
-        # 반지름 = (피해액 스케일링) ^ 0.5 + 기본 크기
         radius_scale = 0.00001
         radius = (damage * radius_scale) ** 0.5 + 5 
         
@@ -127,8 +130,8 @@ def create_folium_map(df_geo):
 # -----------------
 
 if __name__ == "__main__":
-    # 데이터 로드
-    df_top = load_data("소방청_연간화재통계_20241231.csv")
+    # 데이터 로드 (수정된 경로 사용)
+    df_top = load_data(DATA_FILE_PATH)
     
     # 데이터 요약 정보 표시
     st.subheader("📊 재산피해 상위 100건 데이터 정보")
@@ -137,7 +140,6 @@ if __name__ == "__main__":
     st.dataframe(df_top[['시도', '시_군_구', '재산피해소계', '발화요인대분류', '장소대분류']].head(5))
 
     # 지오코딩 및 지도 생성 버튼
-    # 지오코딩에 시간이 걸리므로 버튼 클릭 후 실행
     if st.button("🗺️ 지도 시각화 시작 (지오코딩 필요)"):
         df_geo = geocode_data(df_top)
         
