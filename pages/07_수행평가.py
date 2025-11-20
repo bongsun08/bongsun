@@ -69,7 +69,11 @@ for _, row in top10.iterrows():
     lat, lon = geocode_location(loc_name)
 
     if lat is not None:
-        popup_text = f"<b>{loc_name}</b><br>배출량: {row['배출량(톤)']:,} 톤"
+        popup_text = (
+            f"<b>{loc_name}</b><br>"
+            f"배출량: {row['배출량(톤)']:,} 톤"
+        )
+
         folium.Marker(
             [lat, lon],
             popup=popup_text,
@@ -83,9 +87,18 @@ if search_text.strip() != "":
     lat, lon = geocode_location(search_text)
 
     if lat is not None:
+        # 검색한 지역의 데이터가 있으면 배출량 표시
+        region_df = df[df["기초지자체"].str.contains(search_text.split()[-1], na=False)]
+
+        if not region_df.empty:
+            amount = region_df["배출량(톤)"].iloc[0]
+            popup_text = f"<b>{search_text}</b><br>배출량: {amount:,} 톤"
+        else:
+            popup_text = f"<b>{search_text}</b>"
+
         folium.Marker(
             [lat, lon],
-            popup=f"<b>{search_text}</b>",
+            popup=popup_text,
             icon=folium.Icon(color="pink", icon="star")
         ).add_to(m)
 
